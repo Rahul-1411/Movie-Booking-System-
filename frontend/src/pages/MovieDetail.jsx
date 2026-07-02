@@ -74,8 +74,14 @@ export default function MovieDetail() {
               {/* Info */}
               <div className="flex-1">
                 <div className="flex flex-wrap gap-2 mb-3">
-                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${movie.status === 'NOW_SHOWING' ? 'bg-green-600' : 'bg-yellow-600 text-black'}`}>
-                    {movie.status === 'NOW_SHOWING' ? 'Now Showing' : 'Coming Soon'}
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                    movie.status === 'NOW_SHOWING' ? 'bg-green-600' :
+                    movie.status === 'COMING_SOON' ? 'bg-yellow-600 text-black' :
+                    'bg-gray-700 text-gray-300'
+                  }`}>
+                    {movie.status === 'NOW_SHOWING' ? 'Now Showing' :
+                     movie.status === 'COMING_SOON' ? 'Coming Soon — Advance Booking Open' :
+                     'Ended'}
                   </span>
                   <span className="text-xs font-medium px-3 py-1 rounded-full bg-blue-900 text-blue-300">{movie.genre}</span>
                   <span className="text-xs font-medium px-3 py-1 rounded-full bg-gray-800 text-gray-300">{movie.language}</span>
@@ -124,7 +130,7 @@ export default function MovieDetail() {
                     <button
                       key={show.id}
                       onClick={() => handleSelectShow(show)}
-                      disabled={show.availableSeats === 0 || movie.status === 'COMING_SOON'}
+                     disabled={show.availableSeats === 0 || show.status !== 'ACTIVE'}
                       className={`card p-4 text-left min-w-[160px] transition-all border-2 ${
                         show.availableSeats === 0
                           ? 'border-gray-800 opacity-50 cursor-not-allowed'
@@ -137,7 +143,11 @@ export default function MovieDetail() {
                       <div className="mt-2 flex items-center justify-between">
                         <span className="text-red-400 font-semibold text-sm">₹{show.price}</span>
                         <span className={`text-xs ${show.availableSeats < 20 ? 'text-red-400' : 'text-green-400'}`}>
-                          {show.availableSeats === 0 ? 'Sold Out' : `${show.availableSeats} left`}
+                          {show.availableSeats === 0
+                            ? 'Sold Out'
+                            : show.status !== 'ACTIVE'
+                            ? 'Unavailable'
+                            : `${show.availableSeats} left`}
                         </span>
                       </div>
                     </button>

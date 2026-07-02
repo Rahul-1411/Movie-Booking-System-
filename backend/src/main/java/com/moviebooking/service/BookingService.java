@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.mail.MessagingException;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,6 +26,11 @@ public class BookingService {
     @Autowired private SeatRepository seatRepository;
     @Autowired private ShowRepository showRepository;
     @Autowired private UserRepository userRepository;
+    @Autowired
+    private EmailService emailService;
+
+
+
 
     /**
      * ✅ OPTIMISTIC LOCKING: Creates and confirms a booking in a single step.
@@ -90,6 +96,32 @@ public class BookingService {
         booking.setTotalAmount(totalAmount);
         booking.setStatus(Booking.BookingStatus.CONFIRMED);
         bookingRepository.save(booking);
+
+// Convert seat list into A1, A2, A3...
+        String seatNumbers = booking.getSeats()
+                .stream()
+                .map(Seat::getSeatNumber)
+                .collect(Collectors.joining(", "));
+
+// Send Email
+        try {
+
+            emailService.sendBookingEmail(
+                    booking.getUser().getEmail(),
+                    booking.getUser().getFullName(),
+                    booking.getBookingReference(),
+                    booking.getShow().getMovie().getTitle(),
+                    booking.getShow().getTheater().getName(),
+                    booking.getShow().getShowTime().toString(),
+                    seatNumbers,
+                    booking.getTotalAmount()
+            );
+
+        } catch (Exception e) {
+
+            log.error("Unable to send booking email", e);
+
+        }
 
         log.info("Booking confirmed: {} for user: {}", booking.getBookingReference(), username);
 

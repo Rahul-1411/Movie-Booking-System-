@@ -29,7 +29,10 @@ export default function BookingSuccess() {
             <span className="text-4xl">✅</span>
           </div>
           <h1 className="text-2xl font-bold text-white mb-1">Booking Confirmed!</h1>
-          <p className="text-gray-400">Your tickets are ready</p>
+         <p className="text-gray-400">Your tickets are ready</p>
+         <p className="text-green-400 text-sm mt-2">
+           📧 A confirmation email  has been sent to your registered email address.
+         </p>
         </div>
 
         {/* Ticket card */}
