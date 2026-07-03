@@ -1,13 +1,20 @@
 # 🎬 CineBook — Movie Booking System
 
-A full-stack movie ticket booking system built with **Spring Boot** (backend) and **React + Vite** (frontend), featuring:
+A full-stack movie ticket booking system built with Spring Boot (backend) and React + Vite (frontend), featuring:
 
-- ✅ **Optimistic Locking** to handle concurrent seat booking conflicts
-- ✅ **MySQL** persistent database
-- ✅ **JWT Authentication** delivered via secure HttpOnly cookies, with role-based access (USER / ADMIN)
-- ✅ **Instant booking confirmation** — no external payment gateway, seats are booked in a single atomic step
-- ✅ **Real-time seat layout** with seat type support (Standard / Premium / Recliner)
-- ✅ **Admin Dashboard** to manage movies, shows, and theaters
+✅ Optimistic Locking to handle concurrent seat booking conflicts
+
+✅ MySQL persistent database
+
+✅ JWT Authentication delivered via secure HttpOnly cookies, with role-based access (USER / ADMIN)
+
+✅ Instant booking confirmation — no external payment gateway, seats are booked in a single atomic step
+
+✅ Real-time seat layout with seat type support (Standard / Premium / Recliner)
+
+✅ Automated HTML booking confirmation emails sent immediately after successful booking, containing movie, theater, show time, seats, amount, and booking reference details
+
+✅ Admin Dashboard to manage movies, shows, and theaters
 
 ---
 
