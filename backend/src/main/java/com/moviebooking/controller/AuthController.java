@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.HttpHeaders;
 
 import java.util.Map;
 
@@ -36,15 +38,16 @@ public class AuthController {
 
         AuthDto.AuthResponse authResponse = authService.login(request);
 
-        // ✅ Set JWT in an HttpOnly cookie — not accessible to JavaScript, mitigates XSS token theft
-        Cookie cookie = new Cookie(COOKIE_NAME, authResponse.getToken());
-        cookie.setHttpOnly(true);
-        cookie.setSecure(cookieSecure);   // set app.cookie.secure=true in production (HTTPS only)
-        cookie.setPath("/");
-        cookie.setMaxAge(jwtExpirationMs / 1000);
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from(COOKIE_NAME, authResponse.getToken())
+                .httpOnly(true)
+                .secure(true) // must be true on Render (HTTPS)
+                .path("/")
+                .maxAge(jwtExpirationMs / 1000)
+                .sameSite("None") // 🔥 VERY IMPORTANT for Vercel + Render
+                .build();
 
-        // Don't leak the raw token in the response body anymore
+        response.setHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+
         authResponse.setToken(null);
         return ResponseEntity.ok(authResponse);
     }
