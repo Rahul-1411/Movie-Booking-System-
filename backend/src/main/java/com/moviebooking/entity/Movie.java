@@ -26,6 +26,7 @@ public class Movie {
     private String language;
     private Integer duration;
     private String director;
+    @Column(name = "movie_cast")
     private String cast;
     private LocalDate releaseDate;
     private String posterUrl;
