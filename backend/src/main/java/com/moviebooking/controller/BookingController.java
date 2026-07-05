@@ -16,31 +16,62 @@ public class BookingController {
     @Autowired
     private BookingService bookingService;
 
-    /**
-     * Creates and confirms a booking in one step.
-     * Seat availability is protected by optimistic locking (@Version on Seat)
-     * to prevent two users from booking the same seat concurrently.
-     */
+    // =========================
+    // CREATE BOOKING
+    // =========================
     @PostMapping
-    public ResponseEntity<BookingDto.BookingResponse> createBooking(
+    public ResponseEntity<?> createBooking(
             @RequestBody BookingDto.BookingRequest request,
             Authentication auth) {
-        return ResponseEntity.ok(bookingService.createBooking(request, auth.getName()));
+
+        if (auth == null || !auth.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        return ResponseEntity.ok(
+                bookingService.createBooking(request, auth.getName())
+        );
     }
 
+    // =========================
+    // GET MY BOOKINGS
+    // =========================
     @GetMapping("/my")
-    public ResponseEntity<List<BookingDto.BookingResponse>> getMyBookings(Authentication auth) {
-        return ResponseEntity.ok(bookingService.getUserBookings(auth.getName()));
+    public ResponseEntity<?> getMyBookings(Authentication auth) {
+
+        if (auth == null || !auth.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        List<BookingDto.BookingResponse> bookings =
+                bookingService.getUserBookings(auth.getName());
+
+        return ResponseEntity.ok(bookings);
     }
 
+    // =========================
+    // GET BY REFERENCE
+    // =========================
     @GetMapping("/reference/{ref}")
-    public ResponseEntity<BookingDto.BookingResponse> getBookingByReference(@PathVariable String ref) {
-        return ResponseEntity.ok(bookingService.getBookingByReference(ref));
+    public ResponseEntity<?> getBookingByReference(@PathVariable String ref) {
+        return ResponseEntity.ok(
+                bookingService.getBookingByReference(ref)
+        );
     }
 
+    // =========================
+    // CANCEL BOOKING
+    // =========================
     @DeleteMapping("/{id}/cancel")
-    public ResponseEntity<Void> cancelBooking(@PathVariable Long id, Authentication auth) {
+    public ResponseEntity<?> cancelBooking(
+            @PathVariable Long id,
+            Authentication auth) {
+
+        if (auth == null || !auth.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
         bookingService.cancelBooking(id, auth.getName());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok("Booking cancelled");
     }
 }

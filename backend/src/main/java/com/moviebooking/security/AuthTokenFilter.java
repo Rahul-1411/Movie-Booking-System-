@@ -37,16 +37,10 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         try {
+
             String jwt = parseJwt(request);
 
-            // If no token → continue without authentication
-            if (jwt == null) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            // Validate token
-            if (jwtUtils.validateJwtToken(jwt)) {
+            if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
 
                 String username = jwtUtils.getUsernameFromJwtToken(jwt);
 
@@ -64,31 +58,32 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            } else {
+                // IMPORTANT: clear context if no valid token
+                SecurityContextHolder.clearContext();
             }
 
         } catch (Exception e) {
             logger.error("Cannot set user authentication: {}", e.getMessage());
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
     }
 
-    // 🔥 Extract JWT from HttpOnly cookie
     private String parseJwt(HttpServletRequest request) {
 
         if (request.getCookies() == null) {
-            logger.warn("No cookies found in request");
             return null;
         }
 
         for (Cookie cookie : request.getCookies()) {
             if ("jwt".equals(cookie.getName())) {
-                logger.info("JWT cookie found");
                 return cookie.getValue();
             }
         }
 
-        logger.warn("JWT cookie not found");
         return null;
     }
 }
