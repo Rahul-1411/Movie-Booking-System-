@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,18 +27,22 @@ public class ShowService {
     @Autowired
     private SeatRepository seatRepository;
 
+    // =========================
+    // GET SHOWS BY MOVIE
+    // =========================
     @Transactional(readOnly = true)
     public List<ShowDto.ShowResponse> getShowsForMovie(Long movieId) {
-        List<Show> shows = showRepository.findByMovieIdAndShowTimeAfter(
-                movieId,
-                LocalDateTime.now().minusHours(1)
-        );
+
+        List<Show> shows = showRepository.findByMovie_Id(movieId);
 
         return shows.stream()
                 .map(this::mapToShowResponse)
                 .collect(Collectors.toList());
     }
 
+    // =========================
+    // GET SHOW SEAT LAYOUT
+    // =========================
     @Transactional(readOnly = true)
     public ShowDto.ShowSeatLayoutResponse getShowSeatLayout(Long showId) {
 
@@ -77,17 +80,22 @@ public class ShowService {
                 .build();
     }
 
+    // =========================
+    // GET ALL SHOWS (ADMIN / FRONTEND)
+    // =========================
     @Transactional(readOnly = true)
     public List<ShowDto.ShowResponse> getAllActiveShows() {
 
-        return showRepository.findAll().stream()
-                .filter(show ->
-                        show.getStatus() == Show.ShowStatus.ACTIVE
-                                && show.getShowTime().isAfter(LocalDateTime.now()))
+        return showRepository.findAll()
+                .stream()
+                .filter(show -> show.getStatus() == Show.ShowStatus.ACTIVE)
                 .map(this::mapToShowResponse)
                 .collect(Collectors.toList());
     }
 
+    // =========================
+    // CREATE SHOW
+    // =========================
     @Transactional
     public Show createShow(ShowDto.CreateShowRequest request) {
 
@@ -106,21 +114,22 @@ public class ShowService {
         show.setPrice(request.getPrice());
         show.setTotalSeats(request.getTotalSeats());
         show.setAvailableSeats(request.getTotalSeats());
+        show.setStatus(Show.ShowStatus.ACTIVE);
 
-        showRepository.save(show);
+        show = showRepository.save(show);
 
+        // =========================
+        // GENERATE SEATS
+        // =========================
         List<Seat> seats = new ArrayList<>();
 
         String[] rows = {"A","B","C","D","E","F","G","H","I","J"};
-
         int seatsPerRow = request.getTotalSeats() / rows.length;
 
         for (int r = 0; r < rows.length; r++) {
-
             for (int s = 1; s <= seatsPerRow; s++) {
 
                 Seat seat = new Seat();
-
                 seat.setShow(show);
                 seat.setRow(rows[r]);
                 seat.setSeatNumber(rows[r] + s);
@@ -147,6 +156,9 @@ public class ShowService {
         return show;
     }
 
+    // =========================
+    // MAPPER
+    // =========================
     private ShowDto.ShowResponse mapToShowResponse(Show show) {
 
         return ShowDto.ShowResponse.builder()

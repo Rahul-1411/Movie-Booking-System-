@@ -8,7 +8,6 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface ShowRepository extends JpaRepository<Show, Long> {
@@ -26,24 +25,8 @@ public interface ShowRepository extends JpaRepository<Show, Long> {
             @Param("movieId") Long movieId,
             @Param("from") LocalDateTime from);
 
-    @Query("""
-        SELECT s
-        FROM Show s
-        JOIN FETCH s.movie
-        JOIN FETCH s.theater
-    """)
-    List<Show> findAll();
-
-    @Query("""
-        SELECT s
-        FROM Show s
-        JOIN FETCH s.movie
-        JOIN FETCH s.theater
-        WHERE s.id = :id
-    """)
-    Optional<Show> findById(@Param("id") Long id);
-
     List<Show> findByTheaterId(Long theaterId);
+    List<Show> findByMovie_Id(Long movieId);
 
     @Query("""
         SELECT s
