@@ -12,7 +12,6 @@ A full-stack movie ticket booking system built with Spring Boot (backend) and Re
 
 ✅ Real-time seat layout with seat type support (Standard / Premium / Recliner)
 
-✅ Automated HTML booking confirmation emails sent immediately after successful booking, containing movie, theater, show time, seats, amount, and booking reference details
 
 ✅ Admin Dashboard to manage movies, shows, and theaters
 
