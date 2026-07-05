@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import jakarta.mail.MessagingException;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,20 +25,12 @@ public class BookingService {
     @Autowired private SeatRepository seatRepository;
     @Autowired private ShowRepository showRepository;
     @Autowired private UserRepository userRepository;
-    @Autowired
-    private EmailService emailService;
+    @Autowired private EmailService emailService;
 
-
-
-
-    /**
-     * ✅ OPTIMISTIC LOCKING: Creates and confirms a booking in a single step.
-     * The @Version field on Seat entity ensures two users can't book the same seat
-     * simultaneously — if a conflict occurs, ObjectOptimisticLockingFailureException
-     * is thrown and translated into a 409 Conflict by the global exception handler.
-     */
     @Transactional
-    public BookingDto.BookingResponse createBooking(BookingDto.BookingRequest request, String username) {
+    public BookingDto.BookingResponse createBooking(
+            BookingDto.BookingRequest request, String username) {
+
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -50,46 +41,40 @@ public class BookingService {
             throw new SeatNotAvailableException("This show is no longer active");
         }
 
-        // ✅ Fetch seats with OPTIMISTIC lock — version check happens on save
         List<Seat> seats = seatRepository.findByIdsAndShowIdWithOptimisticLock(
-                request.getSeatIds(), request.getShowId()
-        );
+                request.getSeatIds(), request.getShowId());
 
         if (seats.size() != request.getSeatIds().size()) {
-            throw new ResourceNotFoundException("One or more seats not found for this show");
+            throw new ResourceNotFoundException(
+                    "One or more seats not found for this show");
         }
 
-        // ✅ Validate all seats are AVAILABLE
         List<String> unavailableSeats = seats.stream()
                 .filter(s -> s.getStatus() != Seat.SeatStatus.AVAILABLE)
                 .map(Seat::getSeatNumber)
                 .collect(Collectors.toList());
 
         if (!unavailableSeats.isEmpty()) {
-            throw new SeatNotAvailableException("Seats not available: " + String.join(", ", unavailableSeats));
+            throw new SeatNotAvailableException(
+                    "Seats not available: " + String.join(", ", unavailableSeats));
         }
 
-        // ✅ Mark seats BOOKED atomically — fails with OptimisticLockingFailureException
-        // if another transaction already modified these seats (concurrent booking attempt)
         seats.forEach(seat -> seat.setStatus(Seat.SeatStatus.BOOKED));
         try {
-            seatRepository.saveAll(seats); // version incremented here; conflict throws exception
+            seatRepository.saveAll(seats);
         } catch (ObjectOptimisticLockingFailureException e) {
             throw new SeatNotAvailableException(
-                "Seats were just taken by another user. Please select different seats."
-            );
+                    "Seats were just taken by another user. Please select different seats.");
         }
 
-        // Update available seat count
         show.setAvailableSeats(show.getAvailableSeats() - seats.size());
         showRepository.save(show);
 
-        // Calculate total amount
         double totalAmount = seats.stream().mapToDouble(Seat::getPrice).sum();
 
-        // Create booking record — confirmed immediately, no payment gateway
         Booking booking = new Booking();
-        booking.setBookingReference("BK" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        booking.setBookingReference(
+                "BK" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         booking.setUser(user);
         booking.setShow(show);
         booking.setSeats(seats);
@@ -97,49 +82,53 @@ public class BookingService {
         booking.setStatus(Booking.BookingStatus.CONFIRMED);
         bookingRepository.save(booking);
 
-// Convert seat list into A1, A2, A3...
-        String seatNumbers = booking.getSeats()
-                .stream()
-                .map(Seat::getSeatNumber)
-                .collect(Collectors.joining(", "));
+        log.info("Booking confirmed: {} for user: {}",
+                booking.getBookingReference(), username);
 
-// Send Email
+        // Send email (never fails the booking)
         try {
+            String seatNumbers = seats.stream()
+                    .map(Seat::getSeatNumber)
+                    .collect(Collectors.joining(", "));
 
             emailService.sendBookingEmail(
-                    booking.getUser().getEmail(),
-                    booking.getUser().getFullName(),
+                    user.getEmail(),
+                    user.getFullName() != null ? user.getFullName() : user.getUsername(),
                     booking.getBookingReference(),
-                    booking.getShow().getMovie().getTitle(),
-                    booking.getShow().getTheater().getName(),
-                    booking.getShow().getShowTime().toString(),
+                    show.getMovie().getTitle(),
+                    show.getTheater().getName(),
+                    show.getShowTime().toString(),
                     seatNumbers,
-                    booking.getTotalAmount()
+                    totalAmount
             );
-
         } catch (Exception e) {
-
-            log.error("Unable to send booking email", e);
-
+            log.error("Unable to send booking email: {}", e.getMessage());
         }
-
-        log.info("Booking confirmed: {} for user: {}", booking.getBookingReference(), username);
 
         return mapToBookingResponse(booking);
     }
 
+    // ✅ Added @Transactional so lazy loading works
+    @Transactional(readOnly = true)
     public List<BookingDto.BookingResponse> getUserBookings(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return bookingRepository.findByUserId(user.getId()).stream()
+
+        // ✅ Use eager fetch query instead of basic findByUserId
+        return bookingRepository.findByUserIdWithDetails(user.getId())
+                .stream()
                 .map(this::mapToBookingResponse)
                 .collect(Collectors.toList());
     }
 
+    // ✅ Added @Transactional so lazy loading works
+    @Transactional(readOnly = true)
     public BookingDto.BookingResponse getBookingByReference(String reference) {
-        Booking booking = bookingRepository.findByBookingReference(reference)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + reference));
-        return mapToBookingResponse(booking);
+        return mapToBookingResponse(
+                bookingRepository.findByBookingReferenceWithDetails(reference)
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Booking not found: " + reference))
+        );
     }
 
     @Transactional
@@ -157,7 +146,7 @@ public class BookingService {
     }
 
     private void releaseSeats(Booking booking) {
-        booking.getSeats().forEach(seat -> seat.setStatus(Seat.SeatStatus.AVAILABLE));
+        booking.getSeats().forEach(s -> s.setStatus(Seat.SeatStatus.AVAILABLE));
         seatRepository.saveAll(booking.getSeats());
         Show show = booking.getShow();
         show.setAvailableSeats(show.getAvailableSeats() + booking.getSeats().size());
@@ -166,7 +155,9 @@ public class BookingService {
 
     private BookingDto.BookingResponse mapToBookingResponse(Booking booking) {
         List<String> seatNumbers = booking.getSeats().stream()
-                .map(Seat::getSeatNumber).collect(Collectors.toList());
+                .map(Seat::getSeatNumber)
+                .collect(Collectors.toList());
+
         return BookingDto.BookingResponse.builder()
                 .bookingId(booking.getId())
                 .bookingReference(booking.getBookingReference())
